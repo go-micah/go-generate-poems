@@ -1,0 +1,75 @@
+Transform: AWS::Serverless-2016-10-31
+Resources:
+  GeneratePoemFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: go1.x
+    Properties:
+      Description: !Sub
+        - Stack ${AWS::StackName} Function ${ResourceName}
+        - ResourceName: GeneratePoemFunction
+      CodeUri: src/GeneratePoemFunction
+      Handler: bootstrap
+      Runtime: provided.al2023
+      MemorySize: 256
+      Timeout: 30
+      Tracing: Active
+      Architectures:
+        - arm64
+      Events:
+        GeneratePoemsApiGET:
+          Type: Api
+          Properties:
+            Path: /
+            Method: GET
+            RestApiId: !Ref GeneratePoemsApi
+      Environment:
+        Variables:
+          POEMS_TABLE_NAME: !Ref Poems
+          POEMS_TABLE_ARN: !GetAtt Poems.Arn
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref Poems
+  GeneratePoemFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Retain
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${GeneratePoemFunction}
+  GeneratePoemsApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub
+        - ${ResourceName} From Stack ${AWS::StackName}
+        - ResourceName: GeneratePoemsApi
+      StageName: Prod
+      DefinitionBody:
+        openapi: '3.0'
+        info: {}
+        paths:
+          /:
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GeneratePoemFunction.Arn}/invocations
+              responses: {}
+      EndpointConfiguration: REGIONAL
+      TracingEnabled: true
+      Cors:
+        MaxAge: 5
+  Poems:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+Outputs:
+  GeneratePoemsApi:
+    Description: API Gateway endpoint URL
+    Value: !Sub https://${GeneratePoemsApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/
