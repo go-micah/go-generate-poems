@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"go-generate-poems/clevelandart"
-	"log"
 	"os"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -16,6 +15,11 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
+
+type Response struct {
+	Poem  string `json:"poem"`
+	Error string `json:"error"`
+}
 
 type Poem struct {
 	ID   string `dynamodbav:"id"`
@@ -74,12 +78,11 @@ func PutPoem(poem Poem) error {
 	return nil
 }
 
-func GetPoem(id string) (Poem, error) {
-	var item Poem
+func GetPoem(id string) (*Poem, error) {
 
 	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion("us-east-1"))
 	if err != nil {
-		return item, fmt.Errorf("unable to load AWS config: %v", err)
+		return nil, fmt.Errorf("unable to load AWS config: %v", err)
 	}
 
 	svc := dynamodb.NewFromConfig(cfg)
@@ -87,7 +90,7 @@ func GetPoem(id string) (Poem, error) {
 	// POEMS_TABLE_NAME
 	table := os.Getenv("POEMS_TABLE_NAME")
 	if table == "" {
-		return item, fmt.Errorf("POEMS_TABLE_NAME not set")
+		return nil, fmt.Errorf("POEMS_TABLE_NAME not set")
 	}
 
 	// get poem from database
@@ -98,19 +101,16 @@ func GetPoem(id string) (Poem, error) {
 		},
 	})
 	if err != nil {
-		return item, fmt.Errorf("error talking to the database: %v", err)
+		return nil, fmt.Errorf("error talking to the database: %v", err)
 	}
 
-	if poem.Item == nil {
-		return item, nil
-	}
-
+	var item Poem
 	err = attributevalue.UnmarshalMap(poem.Item, &item)
 	if err != nil {
-		return item, fmt.Errorf("error unmarshalling poem from database: %v", err)
+		return nil, fmt.Errorf("error unmarshalling poem from database: %v", err)
 	}
 
-	return item, nil
+	return &item, nil
 }
 
 func SendPromptToBedrock(prompt string) (string, error) {
@@ -171,14 +171,26 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	// check if we already have a poem in the database
 	poem, err := GetPoem(id)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
+		resp := Response{
+			Error: err.Error(),
+		}
+		jsonResp, _ := json.Marshal(resp)
+		return events.APIGatewayProxyResponse{
+			Body:       string(jsonResp),
+			StatusCode: 500,
+		}, nil
 	}
 
 	// if we have a poem - return it to API GW
 	if poem.ID != "" {
 		fmt.Println("we already have the poem")
+		resp := Response{
+			Poem: poem.Poem,
+		}
+		jsonResp, _ := json.Marshal(resp)
 		return events.APIGatewayProxyResponse{
-			Body:       poem.Poem,
+			Body:       string(jsonResp),
 			StatusCode: 200,
 		}, nil
 	}
@@ -186,7 +198,15 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	// get artwork from CMA
 	art, err := clevelandart.GetArtwork(id)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
+		resp := Response{
+			Error: err.Error(),
+		}
+		jsonResp, _ := json.Marshal(resp)
+		return events.APIGatewayProxyResponse{
+			Body:       string(jsonResp),
+			StatusCode: 500,
+		}, nil
 	}
 
 	// craft prompt
@@ -195,11 +215,19 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	// send prompt to Bedrock
 	newPoem, err := SendPromptToBedrock(prompt)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
+		resp := Response{
+			Error: err.Error(),
+		}
+		jsonResp, _ := json.Marshal(resp)
+		return events.APIGatewayProxyResponse{
+			Body:       string(jsonResp),
+			StatusCode: 500,
+		}, nil
 	}
 
 	// log the poem
-	fmt.Println(newPoem)
+	//fmt.Println(newPoem)
 
 	// write poem to database
 	var p Poem
@@ -207,12 +235,24 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	p.Poem = newPoem
 	err = PutPoem(p)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
+		resp := Response{
+			Error: err.Error(),
+		}
+		jsonResp, _ := json.Marshal(resp)
+		return events.APIGatewayProxyResponse{
+			Body:       string(jsonResp),
+			StatusCode: 500,
+		}, nil
 	}
 
 	// return the poem
+	resp := Response{
+		Poem: newPoem,
+	}
+	jsonResp, _ := json.Marshal(resp)
 	return events.APIGatewayProxyResponse{
-		Body:       newPoem,
+		Body:       string(jsonResp),
 		StatusCode: 200,
 	}, nil
 
