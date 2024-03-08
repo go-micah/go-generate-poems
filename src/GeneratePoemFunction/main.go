@@ -14,11 +14,12 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/go-micah/go-bedrock/providers"
 )
 
 type Response struct {
-	Poem  string `json:"poem"`
-	Error string `json:"error"`
+	Poem  string `json:"poem,omitempty"`
+	Error string `json:"error,omitempty"`
 }
 
 type Poem struct {
@@ -26,26 +27,11 @@ type Poem struct {
 	Poem string `dynamodbav:"poem"`
 }
 
-type Body struct {
-	Prompt           string   `json:"prompt"`
-	MaxTokens        int      `json:"max_tokens_to_sample"`
-	Temperature      int      `json:"temperature"`
-	TopK             int      `json:"top_k"`
-	TopP             float64  `json:"top_p"`
-	StopSequences    []string `json:"stop_sequences"`
-	AnthropicVersion string   `json:"anthropic_version"`
-}
-
-type AnthropicResponseBody struct {
-	Completion string `json:"completion"`
-	StopReason string `json:"stop_reason"`
-}
-
 func CraftPrompt(doc []byte) string {
 	// craft a prompt with the artwork
 	document := "<document>" + string(doc) + "</document>\n\n"
 
-	prompt := "\n\nHuman: " + document + "Write a short poem inspired by the artwork described by the <document> \n\nAssistant:"
+	prompt := document + "Write a short poem inspired by the artwork described by the <document>"
 
 	return prompt
 }
@@ -124,17 +110,26 @@ func SendPromptToBedrock(prompt string) (string, error) {
 
 	accept := "*/*"
 	contentType := "application/json"
-	modelId := "anthropic.claude-instant-v1"
+	modelId := "anthropic.claude-3-sonnet-20240229-v1:0"
 
-	var body Body
-
-	body.Prompt = prompt
-	body.MaxTokens = 300
-	body.Temperature = 1
-	body.TopK = 250
-	body.TopP = 0.999
-	body.StopSequences = []string{
-		"\n\nHuman:",
+	body := providers.AnthropicClaudeMessagesInvokeModelInput{
+		System: "Respond with just the poem, nothing else.",
+		Messages: []providers.AnthropicClaudeMessage{
+			{
+				Role: "user",
+				Content: []providers.AnthropicClaudeContent{
+					{
+						Type: "text",
+						Text: prompt,
+					},
+				},
+			},
+		},
+		MaxTokens:     500,
+		TopP:          0.999,
+		TopK:          250,
+		Temperature:   1,
+		StopSequences: []string{},
 	}
 
 	bodyString, err := json.Marshal(body)
@@ -152,14 +147,14 @@ func SendPromptToBedrock(prompt string) (string, error) {
 		return "", fmt.Errorf("error from Bedrock, %v", err)
 	}
 
-	var out AnthropicResponseBody
+	var out providers.AnthropicClaudeMessagesInvokeModelOutput
 
 	err = json.Unmarshal(bedrockResp.Body, &out)
 	if err != nil {
 		return "", fmt.Errorf("unable to unmarshal response from Bedrock: %v", err)
 	}
 
-	return out.Completion, nil
+	return out.Content[0].Text, nil
 
 }
 
