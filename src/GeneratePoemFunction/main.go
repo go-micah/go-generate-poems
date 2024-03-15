@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"go-generate-poems/clevelandart"
 	"os"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -14,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/go-micah/clevelandart"
 	"github.com/go-micah/go-bedrock/providers"
 )
 
@@ -27,9 +27,9 @@ type Poem struct {
 	Poem string `dynamodbav:"poem"`
 }
 
-func CraftPrompt(doc []byte) string {
+func CraftPrompt(doc string) string {
 	// craft a prompt with the artwork
-	document := "<document>" + string(doc) + "</document>\n\n"
+	document := "<document>" + doc + "</document>\n\n"
 
 	prompt := document + "Write a short poem inspired by the artwork described by the <document>"
 
@@ -205,7 +205,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	}
 
 	// craft prompt
-	prompt := CraftPrompt(art)
+	prompt := CraftPrompt(art.JSON)
 
 	// send prompt to Bedrock
 	newPoem, err := SendPromptToBedrock(prompt)
@@ -220,9 +220,6 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 			StatusCode: 500,
 		}, nil
 	}
-
-	// log the poem
-	//fmt.Println(newPoem)
 
 	// write poem to database
 	var p Poem
