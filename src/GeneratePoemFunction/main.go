@@ -110,7 +110,7 @@ func SendPromptToBedrock(prompt string) (string, error) {
 
 	accept := "*/*"
 	contentType := "application/json"
-	modelId := "anthropic.claude-3-sonnet-20240229-v1:0"
+	modelId := "anthropic.claude-3-haiku-20240307-v1:0"
 
 	body := providers.AnthropicClaudeMessagesInvokeModelInput{
 		System: "Respond with just the poem, nothing else.",
