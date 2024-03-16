@@ -23,8 +23,9 @@ type Response struct {
 }
 
 type Poem struct {
-	ID   string `dynamodbav:"id"`
-	Poem string `dynamodbav:"poem"`
+	ID              string `dynamodbav:"id"`
+	AccessionNumber string `dynamodbav:"accession_number"`
+	Poem            string `dynamodbav:"poem"`
 }
 
 func CraftPrompt(doc string) string {
@@ -53,8 +54,9 @@ func PutPoem(poem Poem) error {
 	_, err = svc.PutItem(context.TODO(), &dynamodb.PutItemInput{
 		TableName: &table,
 		Item: map[string]types.AttributeValue{
-			"id":   &types.AttributeValueMemberS{Value: poem.ID},
-			"poem": &types.AttributeValueMemberS{Value: poem.Poem},
+			"id":               &types.AttributeValueMemberS{Value: poem.ID},
+			"accession_number": &types.AttributeValueMemberS{Value: poem.AccessionNumber},
+			"poem":             &types.AttributeValueMemberS{Value: poem.Poem},
 		},
 	})
 	if err != nil {
@@ -225,6 +227,8 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	var p Poem
 	p.ID = id
 	p.Poem = newPoem
+	p.AccessionNumber = art.AccessionNumber
+
 	err = PutPoem(p)
 	if err != nil {
 		fmt.Println(err)

@@ -30,6 +30,7 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref Poems
+        - AmazonBedrockFullAccess
   GeneratePoemFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     DeletionPolicy: Retain
@@ -63,13 +64,25 @@ Resources:
       AttributeDefinitions:
         - AttributeName: id
           AttributeType: S
+        - AttributeName: accession_number
+          AttributeType: S
       BillingMode: PAY_PER_REQUEST
       KeySchema:
         - AttributeName: id
           KeyType: HASH
       StreamSpecification:
         StreamViewType: NEW_AND_OLD_IMAGES
+      GlobalSecondaryIndexes:
+        - IndexName: AccessionNumberIndex
+          KeySchema:
+          - AttributeName: accession_number
+            KeyType: HASH
+          Projection:
+            ProjectionType: ALL
 Outputs:
   GeneratePoemsApi:
     Description: API Gateway endpoint URL
     Value: !Sub https://${GeneratePoemsApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/
+  TableName:
+    Value: !Ref 'Poems'
+    Description: Name of the poems DynamoDB table
