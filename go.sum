@@ -45,6 +45,8 @@ github.com/go-micah/clevelandart v0.0.3 h1:cC3GhmNVXNhp/TmyQFI3XxCfKLfr1aw1EwuQe
 github.com/go-micah/clevelandart v0.0.3/go.mod h1:PS6yEtl/17Y/lDNaPf64roCcfOl5wlQupXjT3qFbvtY=
 github.com/go-micah/go-bedrock v0.1.4 h1:6xMcQ6QMWAwLSioErKcEUBoC0LTPZSbpKiLYPa3Aus0=
 github.com/go-micah/go-bedrock v0.1.4/go.mod h1:hBBDd2x0x5DNnVMLsbq26c71m0KrPE7SD+LD5VJiucU=
+github.com/go-micah/go-bedrock v0.1.7 h1:0vReQMhIrnnoU/6OUiJDbY+HPslXFr+Lod6rvexbNJI=
+github.com/go-micah/go-bedrock v0.1.7/go.mod h1:hBBDd2x0x5DNnVMLsbq26c71m0KrPE7SD+LD5VJiucU=
 github.com/google/go-cmp v0.5.2/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/gNBxE=
 github.com/google/go-cmp v0.5.8 h1:e6P7q2lk1O+qJJb4BtCQXlK8vWEO8V1ZeuEdJNOqZyg=
 github.com/google/go-cmp v0.5.8/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=

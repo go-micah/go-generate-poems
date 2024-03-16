@@ -9,7 +9,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/bedrockruntime v1.5.6
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.30.1
 	github.com/go-micah/clevelandart v0.0.3
-	github.com/go-micah/go-bedrock v0.1.4
+	github.com/go-micah/go-bedrock v0.1.7
 )
 
 require (
