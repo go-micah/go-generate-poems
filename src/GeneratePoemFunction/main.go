@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/expression"
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
@@ -68,6 +70,12 @@ func PutPoem(poem Poem) error {
 
 func GetPoem(id string) (*Poem, error) {
 
+	var accessionNumber string
+
+	if _, err := strconv.Atoi(id); err != nil {
+		accessionNumber = id
+	}
+
 	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion("us-east-1"))
 	if err != nil {
 		return nil, fmt.Errorf("unable to load AWS config: %v", err)
@@ -81,21 +89,51 @@ func GetPoem(id string) (*Poem, error) {
 		return nil, fmt.Errorf("POEMS_TABLE_NAME not set")
 	}
 
-	// get poem from database
-	poem, err := svc.GetItem(context.TODO(), &dynamodb.GetItemInput{
-		TableName: &table,
-		Key: map[string]types.AttributeValue{
-			"id": &types.AttributeValueMemberS{Value: id},
-		},
-	})
-	if err != nil {
-		return nil, fmt.Errorf("error talking to the database: %v", err)
-	}
+	var poem *dynamodb.GetItemOutput
+	var data *dynamodb.QueryOutput
 
 	var item Poem
-	err = attributevalue.UnmarshalMap(poem.Item, &item)
-	if err != nil {
-		return nil, fmt.Errorf("error unmarshalling poem from database: %v", err)
+	var items []Poem
+
+	index := "AccessionNumberIndex"
+
+	filter := expression.Name("accession_number").Equal(expression.Value(accessionNumber))
+	expr, _ := expression.NewBuilder().WithFilter(filter).Build()
+
+	if accessionNumber != "" {
+		data, err = svc.Query(context.TODO(), &dynamodb.QueryInput{
+			TableName:                 &table,
+			IndexName:                 &index,
+			ExpressionAttributeNames:  expr.Names(),
+			ExpressionAttributeValues: expr.Values(),
+			KeyConditionExpression:    expr.Filter(),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("error talking to the database: %v", err)
+		}
+
+		err = attributevalue.UnmarshalListOfMaps(data.Items, &items)
+		if err != nil {
+			return nil, fmt.Errorf("error unmarshalling poems from the database %v", err)
+		}
+		if len(items) > 0 {
+			item = items[0]
+		}
+	} else {
+		// get poem from database
+		poem, err = svc.GetItem(context.TODO(), &dynamodb.GetItemInput{
+			TableName: &table,
+			Key: map[string]types.AttributeValue{
+				"id": &types.AttributeValueMemberS{Value: id},
+			},
+		})
+		if err != nil {
+			return nil, fmt.Errorf("error talking to the database: %v", err)
+		}
+		err = attributevalue.UnmarshalMap(poem.Item, &item)
+		if err != nil {
+			return nil, fmt.Errorf("error unmarshalling poem from database: %v", err)
+		}
 	}
 
 	return &item, nil
@@ -225,7 +263,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 	// write poem to database
 	var p Poem
-	p.ID = id
+	p.ID = fmt.Sprint(art.Id)
 	p.Poem = newPoem
 	p.AccessionNumber = art.AccessionNumber
 
