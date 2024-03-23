@@ -94,6 +94,23 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	// grab id from querystring for an artwork ID or Accession number 160729
 	id := request.QueryStringParameters["id"]
 
+	// check if random
+	if id == "random" {
+		randomId, err := clevelandart.GetRandomArtwork(true)
+		if err != nil {
+			fmt.Println(err)
+			resp := Response{
+				Error: err.Error(),
+			}
+			jsonResp, _ := json.Marshal(resp)
+			return events.APIGatewayProxyResponse{
+				Body:       string(jsonResp),
+				StatusCode: 500,
+			}, nil
+		}
+		id = fmt.Sprint(randomId.Id)
+	}
+
 	// check if we already have a poem in the database
 	poem, err := poems.GetPoem(id)
 	if err != nil {
