@@ -8,7 +8,7 @@ Resources:
       Description: !Sub
         - Stack ${AWS::StackName} Function ${ResourceName}
         - ResourceName: GeneratePoemFunction
-      CodeUri: src/GeneratePoemFunction
+      CodeUri: cmd/GeneratePoemFunction
       Handler: bootstrap
       Runtime: provided.al2023
       MemorySize: 256

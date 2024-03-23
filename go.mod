@@ -1,4 +1,4 @@
-module go-generate-poems
+module github.com/go-micah/go-generate-poems
 
 go 1.22.0
 
